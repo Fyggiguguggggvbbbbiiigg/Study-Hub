@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz and Flashcard Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #F5F5F5;
+            color: #6D2932;
+            text-align: center;
+        }
+        #topicSelector {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #FFCC00;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        h2 {
+            color: #561C24;
+            margin-bottom: 10px;
+        }
+        button, .quizAnswer {
+            padding: 10px 15px;
+            background: linear-gradient(45deg, #6D2932, #561C24);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s;
+            margin: 5px;
+        }
+        button:hover, .quizAnswer:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        section {
+            margin: 20px;
+            padding: 20px;
+            border: 2px solid #561C24;
+            border-radius: 10px;
+            background-color: #E8D84;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        #flashcardContainer, #multipleChoiceQuiz {
+            display: none;
+            margin-top: 20px;
+        }
+        .feedback {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #progressBar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        #progress {
+            height: 20px;
+            background-color: #76c7c0;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #timer {
+            font-size: 20px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="topicSelector">
+        <label for="topic">Choose a topic:</label>
+        <select id="topic">
+            <option value="general">General Knowledge</option>
+            <option value="bio">Biology</option>
+            <option value="ict">ICT</option>
+            <option value="maths">Mathematics</option>
+        </select>
+        <button id="startQuiz">Start Quiz</button>
+        <button id="startFlashcards">Start Flashcards</button>
+        <input type="file" id="fileInput" accept=".csv,.pdf" style="display: none;" />
+        <button id="uploadFileButton">Upload Notes (CSV or PDF)</button>
+    </div>
+
+    <section id="multipleChoiceQuiz">
+        <h2>Multiple Choice Quiz</h2>
+        <div id="quizScoreDisplay">Score: 0</div>
+        <div id="timer">Time Left: <span id="timeLeft">30</span> seconds</div>
+        <div id="progressBar"><div id="progress"></div></div>
+        <div id="quizQuestions"></div>
+        <div class="feedback" id="feedback"></div>
+    </section>
+
+    <section id="flashcardContainer">
+        <h2>Flashcards</h2>
+        <div id="flashcardDisplay"></div>
+        <button id="nextFlashcardButton">Next Flashcard</button>
+        <div class="feedback" id="flashcardFeedback"></div>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script>
+        let quizQuestions = {
+            general: [
+                { question: 'What is the capital of France?', answers: ['Paris', 'London', 'Berlin', 'Madrid'], correct: 'Paris' },
+                { question: 'What is 2 + 2?', answers: ['3', '4', '5', '6'], correct: '4' },
+                { question: 'What is the largest planet in our solar system?', answers: ['Earth', 'Mars', 'Jupiter', 'Saturn'], correct: 'Jupiter' },
+                { question: 'Who wrote "Romeo and Juliet"?', answers: ['Charles Dickens', 'Jane Austen', 'William Shakespeare', 'Mark Twain'], correct: 'William Shakespeare' },
+                { question: 'What is the boiling point of water?', answers: ['0°C', '50°C', '100°C', '150°C'], correct: '100°C' }
+            ],
+            bio: [
+                { question: 'What is the powerhouse of the cell?', answers: ['Nucleus', 'Mitochondria', 'Ribosome', 'Chloroplast'], correct: 'Mitochondria' },
+                { question: 'What is the process of cell division?', answers: ['Mitosis', 'Meiosis', 'Binary Fission', 'Cell Cycle'], correct: 'Mitosis' },
+                { question: 'What is the basic unit of life?', answers: ['Cell', 'Tissue', 'Organ', 'Organism'], correct: 'Cell' },
+                { question: 'What part of the plant is responsible for photosynthesis?', answers: ['Roots', 'Stem', 'Leaves', 'Flowers'], correct: 'Leaves' },
+                { question: 'Which organ is responsible for pumping blood?', answers: ['Lungs', 'Heart', 'Brain', 'Kidneys'], correct: 'Heart' }
+            ],
+            ict: [
+                { question: 'What does CPU stand for?', answers: ['Central Processing Unit', 'Computer Personal Unit', 'Central Processor Unit', 'Control Processing Unit'], correct: 'Central Processing Unit' },
+                { question: 'Which of the following is a programming language?', answers: ['HTML', 'CSS', 'Python', 'XML'], correct: 'Python' },
+                { question: 'What does HTML stand for?', answers: ['HyperText Markup Language', 'HyperText Markup Lab', 'HighText Machine Language', 'HyperText Multi Language'], correct: 'HyperText Markup Language' },
+                { question: 'Which company developed the Windows operating system?', answers: ['Apple', 'Google', 'Microsoft', 'IBM'], correct: 'Microsoft' },
+                { question: 'What is the function of RAM in a computer?', answers: ['Store permanent data', 'Temporary data storage', 'Process data', 'Manage input/output'], correct: 'Temporary data storage' }
+            ],
+            maths: [
+                { question: 'What is the value of π (pi)?', answers: ['3.14', '2.71', '1.41', '1.61'], correct: '3.14' },
+                { question: 'What is 5 squared?', answers: ['10', '25', '20', '15'], correct: '25' },
+                { question: 'What is the square root of 16?', answers: ['2', '4', '8', '6'], correct: '4' },
+                { question: 'What is 15% of 200?', answers: ['30', '25', '20', '35'], correct: '30' },
+                { question: 'What is the formula for the area of a circle?', answers: ['πr^2', '2πr', 'πd', 'r^2'], correct: 'πr^2' }
+            ]
+        };
+
+        let flashcards = [];
+        let currentFlashcardIndex = 0;
+        let currentQuizIndex = 0;
+        let score = 0;
+        let timer;
+        let timeLeft = 30;
+
+        document.getElementById('uploadFileButton').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const fileType = file.type;
+                if (fileType === 'application/pdf') {
+                    readPdfFile(file);
+                } else if (fileType === 'text/csv' || fileType === 'application/csv') {
+                    readCsvFile(file);
+                }
+            }
+        });
+
+        function readCsvFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const lines = content.split('\n');
+                lines.forEach(line => {
+                    const [question, answer, ...answers] = line.split(',');
+                    if (question && answer) {
+                        quizQuestions.general.push({
+                            question: question.trim(),
+                            answers: answers.map(ans => ans.trim()).concat(answer.trim()),
+                            correct: answer.trim()
+                        });
+                    }
+                });
+            };
+            reader.readAsText(file);
+        }
+
+        async function readPdfFile(file) {
+            const pdfData = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(pdfData).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const textItems = textContent.items.map(item => item.str).join(' ');
+                const lines = textItems.split('\n');
+                lines.forEach(line => {
+                    const [question, answer, ...answers] = line.split(',');
+                    if (question && answer) {
+                        quizQuestions.general.push({
+                            question: question.trim(),
+                            answers: answers.map(ans => ans.trim()).concat(answer.trim()),
+                            correct: answer.trim()
+                        });
+                    }
+                });
+            }
+        }
+
+        document.getElementById('startQuiz').addEventListener('click', () => {
+            startQuiz('general');
+        });
+
+        function startQuiz(topic) {
+            score = 0;
+            currentQuizIndex = 0;
+            timeLeft = 30;
+            document.getElementById('quizScoreDisplay').innerText = `Score: ${score}`;
+            document.getElementById('timer').style.display = 'block';
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('multipleChoiceQuiz').style.display = 'block';
+            document.getElementById('flashcardContainer').style.display = 'none';
+            displayNextQuestion(topic);
+            startTimer();
+        }
+
+        function displayNextQuestion(topic) {
+            const questions = quizQuestions[topic];
+            if (currentQuizIndex < questions.length) {
+                const currentQuestion = questions[currentQuizIndex];
+                document.getElementById('quizQuestions').innerHTML = `
+                    <h3>${currentQuestion.question}</h3>
+                    ${currentQuestion.answers.map(answer => `
+                        <button class="quizAnswer">${answer}</button>
+                    `).join('')}
+                `;
+                document.querySelectorAll('.quizAnswer').forEach(button => {
+                    button.addEventListener('click', () => checkAnswer(button.innerText, currentQuestion.correct));
+                });
+                updateProgress();
+            } else {
+                endQuiz();
+            }
+        }
+
+        function checkAnswer(selectedAnswer, correctAnswer) {
+            if (selectedAnswer === correctAnswer) {
+                score++;
+            }
+            currentQuizIndex++;
+            displayNextQuestion('general');
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timeLeft').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    endQuiz();
+                }
+            }, 1000);
+        }
+
+        function updateProgress() {
+            const progress = (currentQuizIndex / quizQuestions.general.length) * 100;
+            document.getElementById('progress').style.width = `${progress}%`;
+        }
+
+        function endQuiz() {
+            clearInterval(timer);
+            document.getElementById('quizQuestions').innerHTML = `<h3>Quiz Over! Your score is: ${score}</h3>`;
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('progressBar').style.display = 'none';
+        }
+
+        document.getElementById('startFlashcards').addEventListener('click', () => {
+            currentFlashcardIndex = 0;
+            document.getElementById('flashcardContainer').style.display = 'block';
+            displayFlashcard();
+        });
+
+        function displayFlashcard() {
+            const flashcardDisplay = document.getElementById('flashcardDisplay');
+            if (flashcards.length === 0) {
+                flashcardDisplay.innerHTML = `<h3>No flashcards available.</h3>`;
+                return;
+            }
+            const card = flashcards[currentFlashcardIndex];
+            flashcardDisplay.innerHTML = `<h3>Question: ${card.question}</h3><div class="feedback" id="flashcardFeedback"></div>`;
+            const answerDisplay = document.createElement('button');
+            answerDisplay.innerText = 'Show Answer';
+            answerDisplay.addEventListener('click', () => {
+                document.getElementById('flashcardFeedback').innerText = `Answer: ${card.answer}`;
+            });
+            flashcardDisplay.appendChild(answerDisplay);
+        }
+
+        document.getElementById('nextFlashcardButton').addEventListener('click', () => {
+            currentFlashcardIndex++;
+            if (currentFlashcardIndex >= flashcards.length) {
+                currentFlashcardIndex = 0; // Loop back to the first card
+            }
+            displayFlashcard();
+        });
+    </script>
+</body>
+</html>
